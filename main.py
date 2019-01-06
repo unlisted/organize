@@ -42,8 +42,8 @@ def catalog_files(dirs, catalog=None):
 
     for d in dirs:
         dir_list = list(d.glob('*'))
-        files = [x for x in dir_list if not x.is_dir() and 'last.txt' not in str(x)]
-        catalog_files([x for x in dir_list if x not in files], catalog)
+        files = [x for x in dir_list if not x.is_dir() and PurePath(x).match('*.txt') is False]
+        catalog_files([x for x in dir_list if x not in files and x.is_dir()], catalog)
         for file in files:
             with open(file, 'rb') as f:
                 data = f.read()
@@ -52,7 +52,7 @@ def catalog_files(dirs, catalog=None):
             current = catalog.get(digest)
             if catalog.get(digest) is not None:
                 logging.info(f'File with hash {digest} already exists at {current}, adding {path}')
-                current.append(file)
+                current.append(path)
             else:
                 logging.debug(f'Adding {digest} at {path}')
                 catalog[digest] = [path, ]
@@ -142,14 +142,14 @@ if __name__ == '__main__':
 
 
     # root = PurePath(DEFAULT_TARGET_ROOT)
-    # catalog = catalog_files([Path(DEFAULT_TARGET_ROOT),])
-    # with open('catalog.txt', 'w') as f:
-    #     f.write(json.dumps({k: [str(x) for x in v] for k, v in catalog.items()}))
+    catalog = catalog_files([Path(DEFAULT_TARGET_ROOT),])
+    with open('catalog.txt_OLD', 'w') as f:
+        f.write(json.dumps({k: [str(x) for x in v] for k, v in catalog.items()}))
 
-    with open('catalog.txt', 'r') as f:
-        data = json.loads(f.read())
-    #
-    #
-    #
-    compare_results(data)
-    print(len(data))
+    # with open('catalog.txt_OLD', 'r') as f:
+    #     data = json.loads(f.read())
+    # #
+    # #
+    # #
+    # compare_results(data)
+    print(len(catalog))
