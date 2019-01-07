@@ -77,13 +77,15 @@ def copy_files(dirs):
     logging.debug(f'Got {len(dirs)} directories.')
     for d in dirs:
         for file in sorted(d.glob('*')):
+            # TODO: get hash, skip if exists
+            # TODO: caculate file index from catalog
             if file.is_dir():
-                logging.debug(f'Running copy_files for {str(file)}.')
+                logging.debug(f'Running copy_files for {file}.')
                 copy_files([file,])
 
             ext = _get_file_ext(file)
             if ext not in ['avi', 'pdn', 'jpg', 'arw', 'mov', 'mp4', 'tif', 'xcf', 'm2ts', 'png', 'mts']:
-                logging.debug(f'{str(file)} has wrong file extension, skipping.')
+                logging.debug(f'{file} has wrong file extension, skipping.')
                 continue
 
             # TODO: ugly
@@ -142,14 +144,14 @@ if __name__ == '__main__':
 
 
     # root = PurePath(DEFAULT_TARGET_ROOT)
-    catalog = catalog_files([Path(DEFAULT_TARGET_ROOT),])
-    with open('catalog.txt_OLD', 'w') as f:
-        f.write(json.dumps({k: [str(x) for x in v] for k, v in catalog.items()}))
+    # catalog = catalog_files([Path(DEFAULT_TARGET_ROOT),])
+    # with open('catalog.txt', 'w') as f:
+    #     f.write(json.dumps({k: [str(x) for x in v] for k, v in catalog.items()}))
 
-    # with open('catalog.txt_OLD', 'r') as f:
-    #     data = json.loads(f.read())
+    with open('catalog.txt', 'r') as f:
+        data = json.loads(f.read())
     # #
     # #
     # #
     # compare_results(data)
-    print(len(catalog))
+    print(len(data))
