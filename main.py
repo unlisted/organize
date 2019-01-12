@@ -6,6 +6,7 @@ import logging
 from PIL import Image, ExifTags
 import hashlib
 import json
+from io import BytesIO
 
 DEFAULT_ROOT_PATH = 'z:/Morgan/pictures'
 DEFAULT_TARGET_ROOT = 'z:/Morgan/pictures_target'
@@ -73,12 +74,17 @@ def compare_results(comp):
     print(len(source_files))
     print(count)
 
-def copy_files(dirs):
+def copy_files(dirs, catalog=None, paths=None):
+    if catalog is None:
+        catalog = {}
+    if paths is None:
+        paths = []
+
     logging.debug(f'Got {len(dirs)} directories.')
     for d in dirs:
         for file in sorted(d.glob('*')):
-            # TODO: get hash, skip if exists
             # TODO: caculate file index from catalog
+            # rercurse if dir
             if file.is_dir():
                 logging.debug(f'Running copy_files for {file}.')
                 copy_files([file,])
@@ -88,12 +94,21 @@ def copy_files(dirs):
                 logging.debug(f'{file} has wrong file extension, skipping.')
                 continue
 
+            # check if already copied
+            with open(file, 'rb') as f:
+                bb = BytesIO(f.read())
+            digest = hashlib.md5(bb.read()).hexdigest()
+            bb.seek(0)
+            if digest in catalog.keys():
+                logging.info(f'{digest} found in catalog, skip.')
+                continue
+
             # TODO: ugly
             try:
-                img = Image.open(str(file))
+                img = Image.open(bb)
             except:
                 dt = datetime.datetime.fromtimestamp(file.stat().st_ctime, tz=pytz.timezone('America/New_York'))
-                logging.debug(f'Failed to open file as image {str(file)}, using {dt}.')
+                logging.exception(f'Failed to open file as image {str(file)}, using {dt}.')
             else:
                 try:
                     exif_data = img._getexif()
@@ -107,22 +122,16 @@ def copy_files(dirs):
             date_str = f'{dt.strftime("%Y_%m")}'
 
             dest = Path(DEFAULT_TARGET_ROOT) / date_str / ext
-            last_file = dest / 'last.txt'
 
-            if dest.exists() is False or last_file.exists() is False:
-                logging.debug(f'{dest} or {last_file} does not exist, creating. ')
-                idx = 0
+            idx = 0
+            if dest.exists() is False:
+                logging.debug(f'{dest} does not exist, creating. ')
                 dest.mkdir(parents=True)
-                with open(last_file, 'w') as f:
-                    f.write(str(idx))
             else:
-                with open(last_file, 'r+') as f:
-                    data = f.read()
-                    last_idx = int(data)
-                    idx = last_idx + 1
-                    f.seek(0)
-                    f.write(str(idx))
-                    f.truncate()
+                matched = [x for x in catalog_paths if x.match(f'{date_str}/{ext}/*')]
+                if matched:
+                    last_idx = matched[-1].stem[-6:]
+                    idx = int(last_idx) + 1
 
             dest_file = dest / f'{date_str}_{idx:06}.{ext}'
             logging.debug(f'Copying {str(file)} to {str(dest_file)}')
@@ -135,23 +144,26 @@ def copy_files(dirs):
                 continue
 
 
+def get_catalog(catalog_path):
+    if catalog_path.exists() is False:
+        logging.info(f'Could not find {catalog_path}.')
+        return None
+
+    with open(catalog_path, 'r') as f:
+        try:
+            catalog = json.load(f)
+        except json.JSONDecodeError:
+            logging.exception(f'Failed to decode {catalog_path}.')
+            return None
+
+    return catalog
+
 
 if __name__ == '__main__':
-    # dirs = [Path(DEFAULT_ROOT_PATH),]
-    # logging.debug(f'Running copy_dirs for {",".join([str(x) for x in dirs])}')
-    # copy_files(dirs)
-    # logging.debug(f'Done. Copied {counter} files.')
-
-
-    # root = PurePath(DEFAULT_TARGET_ROOT)
-    # catalog = catalog_files([Path(DEFAULT_TARGET_ROOT),])
-    # with open('catalog.txt', 'w') as f:
-    #     f.write(json.dumps({k: [str(x) for x in v] for k, v in catalog.items()}))
-
-    with open('catalog.txt', 'r') as f:
-        data = json.loads(f.read())
-    # #
-    # #
-    # #
-    # compare_results(data)
-    print(len(data))
+    catalog = get_catalog(Path('catalog.txt'))
+    print(len(catalog))
+    catalog_paths = []
+    for paths in catalog.values():
+        catalog_paths.extend([PurePath(x) for x in paths])
+    print(len(catalog_paths))
+    # copy_files([Path(DEFAULT_ROOT_PATH) / 'test'], catalog, catalog_paths)
