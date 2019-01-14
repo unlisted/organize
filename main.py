@@ -10,6 +10,7 @@ from io import BytesIO
 
 DEFAULT_ROOT_PATH = 'z:/Morgan/pictures'
 DEFAULT_TARGET_ROOT = 'z:/Morgan/pictures_target'
+DEFAULT_EXTS = ['avi', 'pdn', 'jpg', 'arw', 'mov', 'mp4', 'tif', 'xcf', 'm2ts', 'png', 'mts']
 
 DEFAULT_DB = 'catalog.db'
 counter = 0
@@ -23,27 +24,13 @@ def _get_file_ext(path):
     return pth_str[idx:].lower()
 
 
-def dirwalk(root_path, dirs=[], exts=set(), files=[]):
-    # root_path = Path(root)
-    for pth in root_path.iterdir():
-        if pth.is_dir():
-            dirs.append(pth)
-            dirwalk(pth, dirs, exts)
-        else:
-            exts.add(_get_file_ext(pth))
-            files.append(pth)
-
-
-    return dirs, exts, files
-
-
 def catalog_files(dirs, catalog=None):
     if catalog is None:
         catalog = {}
 
     for d in dirs:
         dir_list = list(d.glob('*'))
-        files = [x for x in dir_list if not x.is_dir() and PurePath(x).match('*.txt') is False]
+        files = [x for x in dir_list if not x.is_dir() and PurePath(x).suffix in DEFAULT_EXTS]
         catalog_files([x for x in dir_list if x not in files and x.is_dir()], catalog)
         for file in files:
             with open(file, 'rb') as f:
@@ -90,7 +77,7 @@ def copy_files(dirs, catalog=None, paths=None):
                 copy_files([file,])
 
             ext = _get_file_ext(file)
-            if ext not in ['avi', 'pdn', 'jpg', 'arw', 'mov', 'mp4', 'tif', 'xcf', 'm2ts', 'png', 'mts']:
+            if ext not in DEFAULT_EXTS:
                 logging.debug(f'{file} has wrong file extension, skipping.')
                 continue
 
